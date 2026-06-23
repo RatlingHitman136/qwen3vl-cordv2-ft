@@ -1,0 +1,23 @@
+# Data & model artifacts
+data/
+outputs/
+checkpoints/
+*.safetensors
+*.bin
+*.pt
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Secrets
+.env
+
+# OS
+.DS_Store
+
+# Claude
+.claude
