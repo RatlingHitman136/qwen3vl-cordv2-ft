@@ -1,0 +1,14 @@
+[
+  "menu.cnt",
+  "menu.discountprice",
+  "menu.nm",
+  "menu.num",
+  "sub_total.discount_price",
+  "sub_total.etc",
+  "sub_total.subtotal_price",
+  "sub_total.tax_price",
+  "total.cashprice",
+  "total.changeprice",
+  "total.creditcardprice",
+  "total.total_price"
+]
