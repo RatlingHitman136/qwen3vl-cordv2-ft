@@ -171,13 +171,15 @@ def select_best_by_f1(base_path, adapter_paths, select_ds, decode="plain", max_p
         )
         metrics, _, _ = infer(model, processor, select_ds)
         results.append({
-            "adapter":       label,
-            "path":          ap,
-            "field_f1":      metrics["field_f1"],
-            "json_validity": metrics["json_validity"],
-            "exact_match":   metrics["exact_match"],
+            "adapter":        label,
+            "path":           ap,
+            "field_f1":       metrics["field_f1"],
+            "normalized_ted": metrics["normalized_ted"],
+            "json_validity":  metrics["json_validity"],
+            "exact_match":    metrics["exact_match"],
         })
         print(f"{label:<24} f1={metrics['field_f1']:.4f}  "
+              f"nted={metrics['normalized_ted']:.4f}  "
               f"valid={metrics['json_validity']:.4f}  exact={metrics['exact_match']:.4f}")
 
         # unload before the next adapter so VRAM doesn't stack
@@ -187,6 +189,10 @@ def select_best_by_f1(base_path, adapter_paths, select_ds, decode="plain", max_p
             torch.cuda.empty_cache(); torch.cuda.ipc_collect()
 
     results.sort(key=lambda r: r["field_f1"], reverse=True)
-    best = results[0]
-    print(f"\nBEST: {best['adapter']}  (field_f1={best['field_f1']:.4f}, decode={decode})")
+    best_f1 = results[0]
+    best_nted = max(results, key=lambda r: r["normalized_ted"])
+    print(f"\nBEST F1:   {best_f1['adapter']}  (field_f1={best_f1['field_f1']:.4f}, "
+          f"nted={best_f1['normalized_ted']:.4f}, decode={decode})")
+    print(f"BEST nTED: {best_nted['adapter']}  (nted={best_nted['normalized_ted']:.4f}, "
+          f"field_f1={best_nted['field_f1']:.4f}, decode={decode})")
     return results
