@@ -11,6 +11,7 @@ flash_attn>=2.8.3
 pydantic
 lm-format-enforcer
 xgrammar
+zss
 
 # Qwen vision utilities
 qwen-vl-utils

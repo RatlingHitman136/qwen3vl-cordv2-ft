@@ -9,21 +9,12 @@ from datasets import load_dataset
 from peft import LoraConfig
 import torch
 from transformers import Qwen3VLForConditionalGeneration, AutoProcessor
-from utils import preprocess_cord
+from utils import preprocess_cord, FIXED_PROMPT, DATASET_ID, BASE_MODEL_SAVE_DIR, CHECKPOINT_MODEL_SAVE_DIR, ADAPTER_OUTPUT_DIR
 from huggingface_hub import snapshot_download
 from trl import SFTConfig, SFTTrainer
 
 import argparse
 import logging
-
-
-DATASET_ID = "naver-clova-ix/cord-v2"
-
-BASE_MODEL_SAVE_DIR = "../models/base/"
-CHECKPOINT_MODEL_SAVE_DIR = "../models/checkpoints/"
-ADAPTER_OUTPUT_DIR = "../models/adapters/"
-
-FIXED_PROMPT = """Extract the receipt from the image into a structured JSON. Your output should contain ONLY correct JSON!"""
 
 
 def setup_logging(level=logging.INFO):
