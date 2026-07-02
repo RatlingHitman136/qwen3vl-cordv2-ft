@@ -4,6 +4,7 @@ Training script for fine-tuning model on recipe PDFs.
 """
 
 import json
+import os
 from pyexpat import model
 
 from datasets import load_dataset
@@ -117,12 +118,20 @@ def training_pipeline(args, logger):
 
     full_model_name = f"{args.model_name}-r{args.model_lora_rank}-{ft_targets}-px{args.model_max_px}"
 
+    resume_checkpoint_path = None
+    total_epochs = args.model_epochs
+    if args.resume_from_step is not None:
+        resume_checkpoint_path = os.path.join(CHECKPOINT_MODEL_SAVE_DIR + full_model_name, f"checkpoint-{args.resume_from_step}")
+        completed_epochs = args.resume_from_step / batch_count
+        total_epochs = completed_epochs + args.model_epochs
+        logger.info(f"Resuming from checkpoint {resume_checkpoint_path} (~{completed_epochs:.2f} epochs already completed); continuing for {args.model_epochs} more epochs (target total: {total_epochs:.2f})")
+
     training_args = SFTConfig(
         output_dir=CHECKPOINT_MODEL_SAVE_DIR + full_model_name,
         per_device_train_batch_size=args.model_batch_size,
         gradient_accumulation_steps=args.model_grad_accum_steps,
         learning_rate=args.model_learning_rate,
-        num_train_epochs=args.model_epochs,
+        num_train_epochs=total_epochs,
         bf16=True,
         gradient_checkpointing=True,
         gradient_checkpointing_kwargs={"use_reentrant": False},
@@ -148,7 +157,7 @@ def training_pipeline(args, logger):
     logger.info(f"Fine-tuning model: {args.model_name} with epochs: {args.model_epochs}, learning rate: {args.model_learning_rate}, lora rank: {args.model_lora_rank}, LT tune: {args.model_lt_tune}, VT tune: {args.model_vt_tune}, max pixels: {args.model_max_px}")
     logger.info(f"Saving checkpoints to {CHECKPOINT_MODEL_SAVE_DIR + full_model_name}")
 
-    trainer.train()
+    trainer.train(resume_from_checkpoint=resume_checkpoint_path)
 
     logger.info(f"Training completed. Saving final model (adapter) to {ADAPTER_OUTPUT_DIR + full_model_name}")
 
@@ -226,7 +235,13 @@ def parse_arguments():
         default=128,
         help="Lora rank"
     )
-    
+    parser.add_argument(
+        "--resume-from-step",
+        type=int,
+        default=None,
+        help="If set, resume training from the checkpoint at this step (found under the checkpoint directory determined by the other model parameters) and continue for --model-epochs additional epochs"
+    )
+
     return parser.parse_args()
 
 
