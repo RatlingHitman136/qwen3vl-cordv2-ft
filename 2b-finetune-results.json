@@ -1,0 +1,42 @@
+[
+  {
+    "adapter": "checkpoint-1200",
+    "path": "../models/checkpoints/qwen3vl-2b-r16-LT-px1600/checkpoint-1200",
+    "field_f1": 0.8856485034535687,
+    "normalized_ted": 0.8975846762248928,
+    "json_validity": 0.99,
+    "exact_match": 0.43
+  },
+  {
+    "adapter": "checkpoint-900",
+    "path": "../models/checkpoints/qwen3vl-2b-r32-LT-px1600/checkpoint-900",
+    "field_f1": 0.8769230769230769,
+    "normalized_ted": 0.8890629206105874,
+    "json_validity": 0.96,
+    "exact_match": 0.39
+  },
+  {
+    "adapter": "checkpoint-900",
+    "path": "../models/checkpoints/qwen3vl-2b-r256-LT-px1600/checkpoint-900",
+    "field_f1": 0.8745684695051784,
+    "normalized_ted": 0.9021307707509044,
+    "json_validity": 0.94,
+    "exact_match": 0.4
+  },
+  {
+    "adapter": "checkpoint-900",
+    "path": "../models/checkpoints/qwen3vl-2b-r64-LT-px1600/checkpoint-900",
+    "field_f1": 0.8736964078794901,
+    "normalized_ted": 0.8934206585055621,
+    "json_validity": 0.98,
+    "exact_match": 0.38
+  },
+  {
+    "adapter": "checkpoint-1700",
+    "path": "../models/checkpoints/qwen3vl-2b-r128-LT-px1600/checkpoint-1700",
+    "field_f1": 0.8631984585741812,
+    "normalized_ted": 0.8962022456393832,
+    "json_validity": 0.97,
+    "exact_match": 0.39
+  }
+]
