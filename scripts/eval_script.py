@@ -235,7 +235,7 @@ def parse_arguments():
     full_model.add_argument(
         "--model-lora-rank",
         type=int,
-        default=128,
+        default=16,
         help="Lora rank"
     )
 

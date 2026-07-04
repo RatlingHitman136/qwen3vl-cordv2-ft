@@ -220,7 +220,7 @@ def parse_arguments():
     parser.add_argument(
         "--model-epochs",
         type=int,
-        default=5,
+        default=20,
         help="Number of training epochs"
     )
     parser.add_argument(
@@ -232,7 +232,7 @@ def parse_arguments():
     parser.add_argument(
         "--model-lora-rank",
         type=int,
-        default=128,
+        default=16,
         help="Lora rank"
     )
     parser.add_argument(
