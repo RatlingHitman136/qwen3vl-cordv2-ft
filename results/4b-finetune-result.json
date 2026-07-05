@@ -1,0 +1,10 @@
+[
+  {
+    "adapter": "checkpoint-900",
+    "path": "../models/checkpoints/qwen3vl-4b-r16-LT-px1600/checkpoint-900",
+    "field_f1": 0.8861538461538462,
+    "normalized_ted": 0.9105171187766645,
+    "json_validity": 0.99,
+    "exact_match": 0.45
+  }
+]

@@ -1,0 +1,10 @@
+[
+  {
+    "adapter": "checkpoint-1200",
+    "path": "../models/checkpoints/qwen3vl-2b-r16-LT-px1600/checkpoint-1200",
+    "field_f1": 0.8788343558282209,
+    "normalized_ted": 0.8976283969441209,
+    "json_validity": 0.97,
+    "exact_match": 0.43
+  }
+]
