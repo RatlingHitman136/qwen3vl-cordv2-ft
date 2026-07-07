@@ -22,10 +22,10 @@ def _walk_types(obj, tag_counts, type_obs, prefix=""):
         for item in obj:
             _walk_types(item, tag_counts, type_obs, prefix)
 
-def _compute_mixed_fields(rows):
+def _compute_mixed_fields(gt_strings):
     tag_counts, type_obs = Counter(), defaultdict(Counter)
-    for row in rows:
-        _walk_types(_gt_parse(row), tag_counts, type_obs)
+    for s in gt_strings:
+        _walk_types(json.loads(s)["gt_parse"], tag_counts, type_obs)
     return frozenset(
         tag for tag, t in type_obs.items()
         if t.get("str", 0) > 0 and t.get("list", 0) > 0
@@ -52,9 +52,32 @@ def _normalize_dict(d, path, mixed):
         out[k] = _normalize_value(v, child, mixed)
     return out
 
+class LazySplit:
+    """Sequence of {"image": PIL, "label": dict} rows. Labels live in RAM (small);
+    images stay Arrow-backed in the HF dataset and decode per access, so a split
+    never holds a thousand decoded PIL images at once (OOM-kills the kernel in
+    memory-capped containers)."""
+
+    def __init__(self, hf_split, labels):
+        self._split = hf_split
+        self.labels = labels
+
+    def __len__(self):
+        return len(self.labels)
+
+    def __getitem__(self, idx):
+        return {"image": self._split[int(idx)]["image"], "label": self.labels[idx]}
+
+    def __iter__(self):
+        for i in range(len(self)):
+            yield self[i]
+
+
 def preprocess_cord(dataset, mixed_fields_path="mixed_fields.json", verbose=True):
     """
-    Returns (train, val, test). Each is a list of {"image": PIL, "label": dict}.
+    Returns (train, val, test). Each is a LazySplit of {"image": PIL, "label": dict}
+    rows — same row interface as a list, but images decode on access instead of
+    being materialized up front.
 
     LOSSLESS: labels are normalized (mixed leaves -> list-of-str) and have their
     dict<->list containers wrapped. NO keys are removed and NO content is dropped.
@@ -65,17 +88,17 @@ def preprocess_cord(dataset, mixed_fields_path="mixed_fields.json", verbose=True
 
     Mixed-field rule is derived from train+val only (test held out), frozen to disk.
     """
-    rule_rows = list(dataset["train"]) + list(dataset["validation"])
-    mixed = _compute_mixed_fields(rule_rows)
+    # single-column access: reading only ground_truth skips decoding every image,
+    # which would otherwise cost ~900 PIL decodes of RAM for a JSON-only pass
+    rule_gts = list(dataset["train"]["ground_truth"]) + list(dataset["validation"]["ground_truth"])
+    mixed = _compute_mixed_fields(rule_gts)
     with open(mixed_fields_path, "w") as f:
         json.dump(sorted(mixed), f, indent=2)
 
-    def build(rows):
-        return [
-            {"image": row["image"],
-             "label": _normalize_dict(_gt_parse(row), "", mixed)}
-            for row in rows
-        ]
+    def build(split):
+        labels = [_normalize_dict(json.loads(s)["gt_parse"], "", mixed)
+                  for s in split["ground_truth"]]
+        return LazySplit(split, labels)
 
     train = build(dataset["train"])
     val   = build(dataset["validation"])
@@ -91,6 +114,7 @@ def preprocess_cord(dataset, mixed_fields_path="mixed_fields.json", verbose=True
     return train, val, test
 
 def test(dataset, row):
-    mixed = _compute_mixed_fields(list(dataset["train"]) + list(dataset["validation"]))
+    mixed = _compute_mixed_fields(
+        list(dataset["train"]["ground_truth"]) + list(dataset["validation"]["ground_truth"]))
     print(f"mixed fields ({len(mixed)}): {sorted(mixed)}")
     return _normalize_dict(_gt_parse(row), "", mixed)

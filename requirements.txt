@@ -1,4 +1,6 @@
 # Core
+torch==2.8.0
+torchvision==0.23.0
 transformers>=4.57.0
 accelerate>=1.0.0
 datasets>=3.0.0
@@ -12,6 +14,9 @@ pydantic
 lm-format-enforcer
 xgrammar
 zss
+GPTQModel>=7.0.0
+optimum>=1.24.0  # peft refuses to attach adapters while gptqmodel is installed without it
+
 
 # Qwen vision utilities
 qwen-vl-utils

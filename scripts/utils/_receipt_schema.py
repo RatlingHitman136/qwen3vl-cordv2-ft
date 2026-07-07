@@ -52,13 +52,18 @@ class Receipt(BaseModel):
     sub_total: Optional[SubTotal] = None
 
 def assert_schema_valid(split, name):
+    # LazySplit exposes .labels — validate those directly so this never
+    # triggers per-row image decoding; plain lists of rows still work
+    labels = getattr(split, "labels", None)
+    if labels is None:
+        labels = [ex["label"] for ex in split]
     bad = 0
-    for ex in split:
+    for label in labels:
         try:
-            Receipt.model_validate(ex["label"])
+            Receipt.model_validate(label)
         except Exception as e:
             bad += 1
             if bad <= 3:
-                print(f"[{name}] reject: {e}\n  label={json.dumps(ex['label'])[:200]}")
+                print(f"[{name}] reject: {e}\n  label={json.dumps(label)[:200]}")
     print(f"[{name}] {len(split)-bad}/{len(split)} valid")
     return bad

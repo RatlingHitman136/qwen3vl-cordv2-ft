@@ -11,6 +11,19 @@ from ._metrics import aggregate_generation_metrics
 from ._receipt_schema import Receipt
 
 
+def _patch_peft_gptqmodel_compat():
+    """peft (<=0.19.x) probes quantization backends when attaching ANY adapter --
+    even on unquantized models -- and imports AwqGEMMQuantLinear from gptqmodel,
+    which GPTQModel 7.x renamed to AwqGEMMLinear. Alias the old name so
+    PeftModel.from_pretrained doesn't crash while gptqmodel is installed."""
+    try:
+        from gptqmodel.nn_modules.qlinear import gemm_awq
+    except ImportError:
+        return
+    if not hasattr(gemm_awq, "AwqGEMMQuantLinear"):
+        gemm_awq.AwqGEMMQuantLinear = gemm_awq.AwqGEMMLinear
+
+
 def load_model_for_inference(
     base_path,
     adapter_path=None,
@@ -32,6 +45,7 @@ def load_model_for_inference(
                 f"No adapter_config.json in '{adapter_path}'. "
                 "If this is a FULL fine-tune (not LoRA), pass it as base_path instead."
             )
+        _patch_peft_gptqmodel_compat()
         model = PeftModel.from_pretrained(model, adapter_path)
         if merge:
             model = model.merge_and_unload()
