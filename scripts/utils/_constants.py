@@ -1,5 +1,3 @@
-# constants shared between training (collate_fn) and eval (run_inference / run_constrained_inference)
-
 FIXED_PROMPT = """Extract the receipt from the image into a structured JSON. Your output should contain ONLY correct JSON!
 """
 

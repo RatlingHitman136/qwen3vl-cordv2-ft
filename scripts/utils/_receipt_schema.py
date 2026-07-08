@@ -3,10 +3,6 @@ import json
 from typing import List, Optional
 from pydantic import BaseModel, ConfigDict
 
-# extra="forbid" -> the grammar forbids any key outside this set (no hallucinated keys).
-# Every field Optional with default None -> the grammar lets the model OMIT absent
-# fields (matches sparse CORD). Mixed fields are List[str]; pure-str fields are str.
-
 class SubMenuItem(BaseModel):
     model_config = ConfigDict(extra="forbid")
     nm: Optional[str] = None         # 404/0

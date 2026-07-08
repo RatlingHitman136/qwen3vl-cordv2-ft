@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Evaluation script for picking the best checkpoint/adapter by field F1.
+Evaluation script for picking the best checkpoint/adapter by field F1 and nTED.
 
 Two modes:
   full-model    Rebuilds the same `full_model_name` train_script.py used
@@ -8,8 +8,8 @@ Two modes:
                 --model-vt-tune/--model-max-px) and evaluates the bare base
                 model, every saved checkpoint except the last (it's redundant
                 with the final adapter), and the final adapter.
-  adapter-list  Evaluates an explicit list of adapter/checkpoint paths against
-                a base model.
+  adapter-list  Evaluates an explicit list of adapter/checkpoint paths against each other and
+                the base model.
 """
 
 import argparse
@@ -27,7 +27,7 @@ from utils import (
     BASE_MODEL_SAVE_DIR,
     CHECKPOINT_MODEL_SAVE_DIR,
     ADAPTER_OUTPUT_DIR,
-    select_best_by_f1,
+    select_best,
 )
 
 
@@ -43,8 +43,6 @@ def resolve_base_path(args):
     """Local snapshot dir for the base model, matching train_script's
     `cache_dir=BASE_MODEL_SAVE_DIR + model_name` convention. Cached, so this
     is a no-op download once the base model is already on disk."""
-    if args.base_path:
-        return args.base_path
     return snapshot_download(repo_id=args.model_id, cache_dir=BASE_MODEL_SAVE_DIR + args.model_name)
 
 
@@ -99,7 +97,7 @@ def eval_full_model(args, logger):
 
     eval_dataset = load_eval_dataset(args.split, logger)
 
-    return select_best_by_f1(
+    return select_best(
         base_path=base_path,
         adapter_paths=adapter_paths,
         select_ds=eval_dataset,
@@ -123,7 +121,7 @@ def eval_adapter_list(args, logger):
 
     eval_dataset = load_eval_dataset(args.split, logger)
 
-    return select_best_by_f1(
+    return select_best(
         base_path=base_path,
         adapter_paths=adapter_paths,
         select_ds=eval_dataset,
@@ -142,23 +140,11 @@ def main(args):
     else:
         results = eval_adapter_list(args, logger)
 
+    # select_best() already prints the BEST F1 / BEST nTED summary; don't repeat it here.
     if args.output_json:
         with open(args.output_json, "w") as f:
             json.dump(results, f, indent=2)
         logger.info(f"Saved full ranking to {args.output_json}")
-
-    best_f1 = results[0]
-    best_nted = max(results, key=lambda r: r["normalized_ted"])
-    logger.info(
-        f"BEST F1: {best_f1['adapter']} (path={best_f1['path']}, "
-        f"field_f1={best_f1['field_f1']:.4f}, normalized_ted={best_f1['normalized_ted']:.4f}, "
-        f"json_validity={best_f1['json_validity']:.4f}, exact_match={best_f1['exact_match']:.4f})"
-    )
-    logger.info(
-        f"BEST nTED: {best_nted['adapter']} (path={best_nted['path']}, "
-        f"normalized_ted={best_nted['normalized_ted']:.4f}, field_f1={best_nted['field_f1']:.4f}, "
-        f"json_validity={best_nted['json_validity']:.4f}, exact_match={best_nted['exact_match']:.4f})"
-    )
 
 
 def add_shared_arguments(parser):
@@ -179,12 +165,6 @@ def add_shared_arguments(parser):
         type=int,
         default=1600,
         help="Maximum 28x28 pixels block count for the model's visual input"
-    )
-    parser.add_argument(
-        "--base-path",
-        type=str,
-        default=None,
-        help="Skip Hub resolution and load the base model from this local path directly"
     )
     parser.add_argument(
         "--split",

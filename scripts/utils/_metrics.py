@@ -1,4 +1,3 @@
-# metrics.py -- scores model JSON output against ground-truth `label` dicts
 import json
 import re
 import zss
