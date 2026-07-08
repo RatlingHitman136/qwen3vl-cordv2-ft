@@ -5,6 +5,7 @@ models/
 *.bin
 *.pt
 scripts/mixed_fields.json
+scripts/logs/
 
 # Python
 __pycache__/
