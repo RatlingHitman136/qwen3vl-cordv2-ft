@@ -1,5 +1,6 @@
 import json
 from collections import Counter, defaultdict
+from ._constants import MIXED_FIELDS_PATH
 from ._receipt_schema import assert_schema_valid
 
 # Containers that flip dict<->list in CORD (single-item -> bare dict). Wrap to list.
@@ -67,7 +68,7 @@ class LazySplit:
             yield self[i]
 
 
-def preprocess_cord(dataset, mixed_fields_path="mixed_fields.json", verbose=True):
+def preprocess_cord(dataset, mixed_fields_path=MIXED_FIELDS_PATH, verbose=True):
     """
     Returns (train, val, test). Each is a LazySplit of {"image": PIL, "label": dict}
     rows — same row interface as a list, but images decode on access instead of

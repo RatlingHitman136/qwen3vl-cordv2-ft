@@ -3,6 +3,8 @@ FIXED_PROMPT = """Extract the receipt from the image into a structured JSON. You
 
 DATASET_ID = "naver-clova-ix/cord-v2"
 
+MIXED_FIELDS_PATH = "logs/mixed_fields.json"
+
 BASE_MODEL_SAVE_DIR = "../models/base/"
 CHECKPOINT_MODEL_SAVE_DIR = "../models/checkpoints/"
 ADAPTER_OUTPUT_DIR = "../models/adapters/"
