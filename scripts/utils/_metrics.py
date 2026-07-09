@@ -6,13 +6,7 @@ from pydantic import ValidationError
 from ._receipt_schema import Receipt
 
 
-def parse_json_lenient(s):
-    """Parse model output text -> dict, or None.
-
-    The model is trained on real JSON (json.dumps(label)), so this only
-    strips markdown code fences / stray surrounding text -- it doesn't need
-    to handle any other serialization (e.g. Python dict repr).
-    """
+def _parse_json_lenient(s):
     if isinstance(s, dict):
         return s
     if not s:
@@ -27,45 +21,35 @@ def parse_json_lenient(s):
         return None
 
 
-def canonical(obj):
-    """Order-independent string form of a dict, for exact-match comparison."""
+def _canonical(obj):
     return json.dumps(obj, sort_keys=True, ensure_ascii=False)
 
 
 def _norm(v):
-    """Collapse whitespace and stringify a leaf value."""
     return re.sub(r"\s+", " ", str(v)).strip()
 
 
-def flatten_fields(obj, prefix=""):
-    """Flatten nested JSON into a list of (leaf_path, value) pairs.
-
-    List indices are dropped from the path on purpose, so menu-item ordering
-    doesn't count as an error (field-F1 is a set/multiset comparison,
-    matching the CORD/Donut convention).
-    """
+def _flatten_fields(obj, prefix=""):
     out = []
     if isinstance(obj, dict):
         for k, v in obj.items():
-            out += flatten_fields(v, f"{prefix}.{k}" if prefix else k)
+            out += _flatten_fields(v, f"{prefix}.{k}" if prefix else k)
     elif isinstance(obj, list):
         for item in obj:
-            out += flatten_fields(item, prefix)
+            out += _flatten_fields(item, prefix)
     else:
         out.append((prefix, _norm(obj)))
     return out
 
 
-def field_counts(pred_obj, label_obj):
-    """Per-sample (true_positive, pred_total, label_total) over flattened leaves."""
-    p = Counter(flatten_fields(pred_obj)) if pred_obj is not None else Counter()
-    g = Counter(flatten_fields(label_obj))
+def _field_counts(pred_obj, label_obj):
+    p = Counter(_flatten_fields(pred_obj)) if pred_obj is not None else Counter()
+    g = Counter(_flatten_fields(label_obj))
     tp = sum((p & g).values())
     return tp, sum(p.values()), sum(g.values())
 
 
 def _zss_tree(obj):
-    """Build a zss.Node tree from nested JSON, for tree-edit-distance."""
     def build(o, label):
         n = zss.Node(label)
         if isinstance(o, dict):
@@ -82,7 +66,6 @@ def _zss_tree(obj):
 
 
 def _count_nodes(o):
-    """Count nodes in a nested JSON structure."""
     if isinstance(o, dict):
         return 1 + sum(_count_nodes(v) for v in o.values())
     if isinstance(o, list):
@@ -90,9 +73,7 @@ def _count_nodes(o):
     return 1
 
 
-def normalized_ted(pred_obj, label_obj):
-    """1 - TED/maxnodes: structural similarity in [0,1], closest to the CORD
-    paper's nTED accuracy. 0.0 if the prediction failed to parse."""
+def _normalized_ted(pred_obj, label_obj):
     if pred_obj is None:
         return 0.0
     dist = zss.simple_distance(_zss_tree(pred_obj), _zss_tree(label_obj))
@@ -113,7 +94,7 @@ def aggregate_generation_metrics(preds, labels):
     nted_vals = []
 
     for pred_text, label_obj in zip(preds, labels):
-        pred_obj = parse_json_lenient(pred_text)
+        pred_obj = _parse_json_lenient(pred_text)
 
         if pred_obj is not None:
             try:
@@ -122,13 +103,13 @@ def aggregate_generation_metrics(preds, labels):
             except ValidationError:
                 pass
 
-        if pred_obj is not None and canonical(pred_obj) == canonical(label_obj):
+        if pred_obj is not None and _canonical(pred_obj) == _canonical(label_obj):
             exact += 1
 
-        tp, pt, lt = field_counts(pred_obj, label_obj)
+        tp, pt, lt = _field_counts(pred_obj, label_obj)
         tp_sum += tp; pred_sum += pt; label_sum += lt
 
-        nted_vals.append(normalized_ted(pred_obj, label_obj))
+        nted_vals.append(_normalized_ted(pred_obj, label_obj))
 
     precision = tp_sum / pred_sum if pred_sum else 0.0
     recall    = tp_sum / label_sum if label_sum else 0.0

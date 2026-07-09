@@ -1,4 +1,3 @@
-# inference.py -- generation, schema-constrained generation, and adapter selection
 import os
 import gc
 import torch
@@ -12,10 +11,6 @@ from ._receipt_schema import Receipt
 
 
 def _patch_peft_gptqmodel_compat():
-    """peft (<=0.19.x) probes quantization backends when attaching ANY adapter --
-    even on unquantized models -- and imports AwqGEMMQuantLinear from gptqmodel,
-    which GPTQModel 7.x renamed to AwqGEMMLinear. Alias the old name so
-    PeftModel.from_pretrained doesn't crash while gptqmodel is installed."""
     try:
         from gptqmodel.nn_modules.qlinear import gemm_awq
     except ImportError:
@@ -55,7 +50,6 @@ def load_model_for_inference(
 
 
 def _build_batch(processor, rows, prompt):
-    """Chat-template the prompt + collect images/labels for one batch of {"image", "label"} rows."""
     texts, images, labels = [], [], []
     for ex in rows:
         user_turn = [{"role": "user", "content": [
@@ -208,6 +202,6 @@ def select_best(base_path, adapter_paths, select_ds, decode="plain", max_pixels=
     best_nted = max(results, key=lambda r: r["normalized_ted"])
     print(f"\nBEST F1:   {best_f1['adapter']}  (field_f1={best_f1['field_f1']:.4f}, "
           f"nted={best_f1['normalized_ted']:.4f}, decode={decode})  path={best_f1['path']}")
-    print(f"BEST nTED: {best_nted['adapter']}  (field_f1={best_f1['field_f1']:.4f}, "
-          f"nted={best_f1['normalized_ted']:.4f}, decode={decode})  path={best_f1['path']}")
+    print(f"BEST nTED: {best_nted['adapter']}  (field_f1={best_nted['field_f1']:.4f}, "
+          f"nted={best_nted['normalized_ted']:.4f}, decode={decode})  path={best_nted['path']}")
     return results

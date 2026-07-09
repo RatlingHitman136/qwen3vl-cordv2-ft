@@ -5,7 +5,6 @@ Training script for fine-tuning model on recipe PDFs.
 
 import json
 import os
-from pyexpat import model
 
 from datasets import load_dataset
 from peft import LoraConfig
@@ -36,9 +35,9 @@ def training_pipeline(args, logger):
 
     logger.info(f"Loaded dataset. TRAIN_COUNT: {len(train_dataset)}, VALIDATION_COUNT: {len(validation_dataset)}, TEST_COUNT: {len(test_dataset)}")
 
-    model_id =  snapshot_download(
-        repo_id=args.model_id,
-        cache_dir=BASE_MODEL_SAVE_DIR + args.model_name
+    model_id = snapshot_download(
+        repo_id=args.id,
+        cache_dir=BASE_MODEL_SAVE_DIR + args.name
     )
     logger.info(f"Downloaded base model from Hugging Face Hub: {model_id}")
 
@@ -48,21 +47,21 @@ def training_pipeline(args, logger):
         device_map="auto",
         attn_implementation="flash_attention_2",
     )
-    processor = AutoProcessor.from_pretrained(model_id, max_pixels=args.model_max_px*28*28)
+    processor = AutoProcessor.from_pretrained(model_id, max_pixels=args.max_px*28*28)
     processor.tokenizer.padding_side = "right"
 
     lt_targets = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
     vt_targets = ["qkv", "proj", "linear_fc1", "linear_fc2"]
 
     training_targets = []
-    if args.model_lt_tune:
+    if args.lt_tune:
         training_targets.extend(lt_targets)
-    if args.model_vt_tune:
+    if args.vt_tune:
         training_targets.extend(vt_targets)
 
 
     peft_config = LoraConfig(
-        r=args.model_lora_rank,
+        r=args.lora_rank,
         lora_alpha=32,
         lora_dropout=0.05,
         bias="none",
@@ -100,37 +99,37 @@ def training_pipeline(args, logger):
         labels[labels == processor.tokenizer.pad_token_id] = -100
         # 3) defensively mask any image placeholder tokens that survive in the completion region
 
-        image_token_id = getattr(model.config, "image_token_id", None) 
+        image_token_id = getattr(model.config, "image_token_id", None)
         if image_token_id is not None:
             labels[labels == image_token_id] = -100
 
         batch["labels"] = labels
         return batch
 
-    effective_batch_size = args.model_batch_size * args.model_grad_accum_steps
+    effective_batch_size = args.batch_size * args.grad_accum_steps
     batch_count = (len(train_dataset) + effective_batch_size - 1) // effective_batch_size
 
     ft_targets = ""
-    if args.model_lt_tune:
+    if args.lt_tune:
         ft_targets += "LT"
-    if args.model_vt_tune:
+    if args.vt_tune:
         ft_targets += "VT"
 
-    full_model_name = f"{args.model_name}-r{args.model_lora_rank}-{ft_targets}-px{args.model_max_px}"
+    full_model_name = f"{args.name}-r{args.lora_rank}-{ft_targets}-px{args.max_px}"
 
     resume_checkpoint_path = None
-    total_epochs = args.model_epochs
+    total_epochs = args.epochs
     if args.resume_from_step is not None:
         resume_checkpoint_path = os.path.join(CHECKPOINT_MODEL_SAVE_DIR + full_model_name, f"checkpoint-{args.resume_from_step}")
         completed_epochs = args.resume_from_step / batch_count
-        total_epochs = completed_epochs + args.model_epochs
-        logger.info(f"Resuming from checkpoint {resume_checkpoint_path} (~{completed_epochs:.2f} epochs already completed); continuing for {args.model_epochs} more epochs (target total: {total_epochs:.2f})")
+        total_epochs = completed_epochs + args.epochs
+        logger.info(f"Resuming from checkpoint {resume_checkpoint_path} (~{completed_epochs:.2f} epochs already completed); continuing for {args.epochs} more epochs (target total: {total_epochs:.2f})")
 
     training_args = SFTConfig(
         output_dir=CHECKPOINT_MODEL_SAVE_DIR + full_model_name,
-        per_device_train_batch_size=args.model_batch_size,
-        gradient_accumulation_steps=args.model_grad_accum_steps,
-        learning_rate=args.model_learning_rate,
+        per_device_train_batch_size=args.batch_size,
+        gradient_accumulation_steps=args.grad_accum_steps,
+        learning_rate=args.learning_rate,
         num_train_epochs=total_epochs,
         bf16=True,
         gradient_checkpointing=True,
@@ -140,7 +139,7 @@ def training_pipeline(args, logger):
         dataset_kwargs={"skip_prepare_dataset": True},
         eval_strategy="steps",
         eval_steps=batch_count,
-        per_device_eval_batch_size=args.model_batch_size,
+        per_device_eval_batch_size=args.batch_size,
     )
 
     trainer = SFTTrainer(
@@ -149,24 +148,24 @@ def training_pipeline(args, logger):
         train_dataset=train_dataset,
         eval_dataset=validation_dataset,
         data_collator=collate_fn,
-        peft_config=peft_config,    
-        processing_class=processor, 
+        peft_config=peft_config,
+        processing_class=processor,
     )
 
-    
-    logger.info(f"Fine-tuning model: {args.model_name} with epochs: {args.model_epochs}, learning rate: {args.model_learning_rate}, lora rank: {args.model_lora_rank}, LT tune: {args.model_lt_tune}, VT tune: {args.model_vt_tune}, max pixels: {args.model_max_px}")
+
+    logger.info(f"Fine-tuning model: {args.name} with epochs: {args.epochs}, learning rate: {args.learning_rate}, lora rank: {args.lora_rank}, LT tune: {args.lt_tune}, VT tune: {args.vt_tune}, max pixels: {args.max_px}")
     logger.info(f"Saving checkpoints to {CHECKPOINT_MODEL_SAVE_DIR + full_model_name}")
 
     trainer.train(resume_from_checkpoint=resume_checkpoint_path)
 
     logger.info(f"Training completed. Saving final model (adapter) to {ADAPTER_OUTPUT_DIR + full_model_name}")
 
-    trainer.save_model(ADAPTER_OUTPUT_DIR + full_model_name) 
+    trainer.save_model(ADAPTER_OUTPUT_DIR + full_model_name)
 
 
 def main(args):
     """Main entry point for the training script."""
-    logger = logging.getLogger(__name__)    
+    logger = logging.getLogger(__name__)
     training_pipeline(args, logger)
 
 
@@ -176,61 +175,61 @@ def parse_arguments():
         description="Fine-tune model on recipe PDFs"
     )
     parser.add_argument(
-        "--model-id",
+        "--id",
         type=str,
         default="Qwen/Qwen3-VL-2B-Instruct",
         help="Model ID"
     )
     parser.add_argument(
-        "--model-name",
+        "--name",
         type=str,
         default="qwen3vl-2b",
         help="Model Name"
     )
     parser.add_argument(
-        "--model-max-px",
+        "--max-px",
         type=int,
         default=1600,
         help="Maximum 28x28 pixels block count for the model's visual input"
     )
     parser.add_argument(
-        "--model-lt-tune",
-        type=bool,
+        "--lt-tune",
+        action=argparse.BooleanOptionalAction,
         default=True,
         help="Whether to fine-tune the language transformer component"
     )
     parser.add_argument(
-        "--model-vt-tune",
-        type=bool,
+        "--vt-tune",
+        action=argparse.BooleanOptionalAction,
         default=False,
         help="Whether to fine-tune the visual transformer component"
     )
     parser.add_argument(
-        "--model-batch-size",
+        "--batch-size",
         type=int,
         default=2,
         help="Device batch size for the model (Both for training and validation)"
     )
     parser.add_argument(
-        "--model-grad-accum-steps",
+        "--grad-accum-steps",
         type=int,
         default=4,
         help="Gradient accumulation steps for the model"
     )
     parser.add_argument(
-        "--model-epochs",
+        "--epochs",
         type=int,
         default=20,
         help="Number of training epochs"
     )
     parser.add_argument(
-        "--model-learning-rate",
+        "--learning-rate",
         type=float,
         default=1e-4,
         help="Learning rate"
     )
     parser.add_argument(
-        "--model-lora-rank",
+        "--lora-rank",
         type=int,
         default=16,
         help="Lora rank"
@@ -239,7 +238,7 @@ def parse_arguments():
         "--resume-from-step",
         type=int,
         default=None,
-        help="If set, resume training from the checkpoint at this step (found under the checkpoint directory determined by the other model parameters) and continue for --model-epochs additional epochs"
+        help="If set, resume training from the checkpoint at this step (found under the checkpoint directory determined by the other model parameters) and continue for --epochs additional epochs"
     )
 
     return parser.parse_args()

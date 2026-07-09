@@ -1,4 +1,3 @@
-# cord_preprocess.py
 import json
 from collections import Counter, defaultdict
 from ._receipt_schema import assert_schema_valid
@@ -7,10 +6,6 @@ from ._receipt_schema import assert_schema_valid
 # This is the ONLY structural transform — it changes representation, not content.
 LIST_CONTAINERS = {"menu", "sub"}
 
-def _gt_parse(row):
-    return json.loads(row["ground_truth"])["gt_parse"]
-
-# ---- frozen mixed-field set: leaves that appear as both str and list ----
 def _walk_types(obj, tag_counts, type_obs, prefix=""):
     if isinstance(obj, dict):
         for k, v in obj.items():
@@ -31,7 +26,6 @@ def _compute_mixed_fields(gt_strings):
         if t.get("str", 0) > 0 and t.get("list", 0) > 0
     )
 
-# ---- lossless normalization: wrap containers + mixed-leaf -> list-of-str ----
 def _normalize_value(v, path, mixed):
     if isinstance(v, str):
         return [v] if path in mixed else v
@@ -48,7 +42,7 @@ def _normalize_dict(d, path, mixed):
     for k, v in d.items():
         child = f"{path}.{k}" if path else k
         if k in LIST_CONTAINERS and isinstance(v, dict):
-            v = [v]                              # wrap single-item container
+            v = [v]
         out[k] = _normalize_value(v, child, mixed)
     return out
 
@@ -112,9 +106,3 @@ def preprocess_cord(dataset, mixed_fields_path="mixed_fields.json", verbose=True
         assert_schema_valid(test, "test")
 
     return train, val, test
-
-def test(dataset, row):
-    mixed = _compute_mixed_fields(
-        list(dataset["train"]["ground_truth"]) + list(dataset["validation"]["ground_truth"]))
-    print(f"mixed fields ({len(mixed)}): {sorted(mixed)}")
-    return _normalize_dict(_gt_parse(row), "", mixed)

@@ -1,4 +1,3 @@
-# receipt_schema.py
 import json
 from typing import List, Optional
 from pydantic import BaseModel, ConfigDict
@@ -42,12 +41,23 @@ class SubTotal(BaseModel):
     discount_price: Optional[List[str]] = None  # mixed
 
 class Receipt(BaseModel):
+    """Top-level CORD receipt schema: menu line items plus subtotal/total blocks.
+
+    Field names mirror the raw CORD dataset keys (e.g. `nm`, `cnt`, `discountprice`);
+    `extra="forbid"` makes validation reject any label carrying an out-of-schema key.
+    Used both to validate normalized labels and to drive schema-constrained decoding.
+    """
     model_config = ConfigDict(extra="forbid")
     menu: Optional[List[MenuItem]] = None
     total: Optional[Total] = None
     sub_total: Optional[SubTotal] = None
 
 def assert_schema_valid(split, name):
+    """Validate every label in a split against the Receipt schema.
+
+    Prints up to 3 rejects plus a valid/total count for `name`, and returns the
+    number of invalid labels.
+    """
     # LazySplit exposes .labels — validate those directly so this never
     # triggers per-row image decoding; plain lists of rows still work
     labels = getattr(split, "labels", None)

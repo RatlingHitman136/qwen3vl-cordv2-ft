@@ -4,8 +4,8 @@ Evaluation script for picking the best checkpoint/adapter by field F1 and nTED.
 
 Two modes:
   full-model    Rebuilds the same `full_model_name` train_script.py used
-                (from --model-name/--model-lora-rank/--model-lt-tune/
-                --model-vt-tune/--model-max-px) and evaluates the bare base
+                (from --name/--lora-rank/--lt-tune/--vt-tune/--max-px) and
+                evaluates the bare base
                 model, every saved checkpoint except the last (it's redundant
                 with the final adapter), and the final adapter.
   adapter-list  Evaluates an explicit list of adapter/checkpoint paths against each other and
@@ -43,17 +43,17 @@ def resolve_base_path(args):
     """Local snapshot dir for the base model, matching train_script's
     `cache_dir=BASE_MODEL_SAVE_DIR + model_name` convention. Cached, so this
     is a no-op download once the base model is already on disk."""
-    return snapshot_download(repo_id=args.model_id, cache_dir=BASE_MODEL_SAVE_DIR + args.model_name)
+    return snapshot_download(repo_id=args.id, cache_dir=BASE_MODEL_SAVE_DIR + args.name)
 
 
 def full_model_name_from_args(args):
     """Same construction as train_script.py's `full_model_name`."""
     ft_targets = ""
-    if args.model_lt_tune:
+    if args.lt_tune:
         ft_targets += "LT"
-    if args.model_vt_tune:
+    if args.vt_tune:
         ft_targets += "VT"
-    return f"{args.model_name}-r{args.model_lora_rank}-{ft_targets}-px{args.model_max_px}"
+    return f"{args.name}-r{args.lora_rank}-{ft_targets}-px{args.max_px}"
 
 
 def checkpoint_sort_key(path):
@@ -102,7 +102,7 @@ def eval_full_model(args, logger):
         adapter_paths=adapter_paths,
         select_ds=eval_dataset,
         decode=args.decode,
-        max_pixels=args.model_max_px * 28 * 28,
+        max_pixels=args.max_px * 28 * 28,
     )
 
 
@@ -126,7 +126,7 @@ def eval_adapter_list(args, logger):
         adapter_paths=adapter_paths,
         select_ds=eval_dataset,
         decode=args.decode,
-        max_pixels=args.model_max_px * 28 * 28,
+        max_pixels=args.max_px * 28 * 28,
     )
 
 
@@ -149,19 +149,19 @@ def main(args):
 
 def add_shared_arguments(parser):
     parser.add_argument(
-        "--model-id",
+        "--id",
         type=str,
         default="Qwen/Qwen3-VL-2B-Instruct",
         help="Base model ID (Hugging Face Hub repo)"
     )
     parser.add_argument(
-        "--model-name",
+        "--name",
         type=str,
         default="qwen3vl-2b",
         help="Model name (used to resolve the base model's cache dir)"
     )
     parser.add_argument(
-        "--model-max-px",
+        "--max-px",
         type=int,
         default=1600,
         help="Maximum 28x28 pixels block count for the model's visual input"
@@ -201,19 +201,19 @@ def parse_arguments():
     )
     add_shared_arguments(full_model)
     full_model.add_argument(
-        "--model-lt-tune",
+        "--lt-tune",
         action=argparse.BooleanOptionalAction,
         default=True,
         help="Whether the language transformer component was fine-tuned"
     )
     full_model.add_argument(
-        "--model-vt-tune",
+        "--vt-tune",
         action=argparse.BooleanOptionalAction,
         default=False,
         help="Whether the visual transformer component was fine-tuned"
     )
     full_model.add_argument(
-        "--model-lora-rank",
+        "--lora-rank",
         type=int,
         default=16,
         help="Lora rank"
