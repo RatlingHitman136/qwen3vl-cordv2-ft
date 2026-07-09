@@ -16,6 +16,7 @@ venv/
 
 # Secrets
 .env
+scripts/hf_credentials.json
 
 # OS
 .DS_Store
