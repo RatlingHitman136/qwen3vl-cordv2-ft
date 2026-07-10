@@ -8,3 +8,5 @@ from ._constants import FIXED_PROMPT, DATASET_ID, MIXED_FIELDS_PATH, BASE_MODEL_
 from ._metrics import aggregate_generation_metrics
 
 from ._inference import load_model_for_inference, run_inference, run_constrained_inference, select_best
+
+from ._model_card import build_card, CARD_SPECS
